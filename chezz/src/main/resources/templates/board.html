@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Board</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-evenly;
+            width: 100%;
+            padding-top: 2vh;
+        }
+        .chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 40px);
+            grid-template-rows: repeat(8, 40px);
+            gap: 2px;
+        }
+        .square {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-family: monospace;
+            background-color: #f0d9b5;
+            border: none;
+            cursor: pointer;
+        }
+        .square:nth-child(even) {
+            background-color: #b58863;
+        }
+        .selected {
+            border: 2px solid red;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chess Board</h1>
+    <div id="current-turn" style="padding-top: 5vh;"> It's White's Turn to Move </div>
+    <div class="container">
+        <div class="chessboard">
+            <div th:each="char, iter : ${board}">
+                <button class="square" 
+                        th:text="${char}" 
+                        th:attr="data-position=${iter.index}" 
+                        onclick="selectSquare(this)"></button>
+            </div>
+        </div>
+
+        <div id="valid-moves" style="margin-right: 20px;">
+            <h2>Valid Moves</h2>
+            <ul id="move-list"></ul>
+        </div>
+
+    <script>
+        let selectedSquare = null;
+
+        function fetchValidMoves() {
+            fetch('/allMoves')
+                .then(response => response.text())
+                .then(data => {
+                    const moveList = document.getElementById('move-list');
+                    moveList.innerHTML = '';
+
+                    data.replace(/[\[\]']+/g,'').split(',').forEach(move => {
+                        const li = document.createElement('li');
+                        li.innerText = move.trim();
+                        moveList.appendChild(li);
+                    });
+                });
+        }
+
+        function selectSquare(button) {
+            const position = button.getAttribute('data-position');
+
+            if (selectedSquare) {
+                const from = selectedSquare.getAttribute('data-position');
+                const to = position;
+
+                fetch(`/move?from=${from}&to=${to}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            updateBoard(data.board);
+                            fetchValidMoves();
+
+                            fetch('/currentTurn')
+                                .then(response => response.text())
+                                .then(turn => {
+                                    document.getElementById('current-turn').innerText = `It's ${turn}'s turn`;
+                                });
+                        } else {
+                            alert(data.message);
+                        }
+                    });
+
+                
+                selectedSquare.classList.remove('selected');
+                selectedSquare = null;
+            } else {
+                selectedSquare = button;
+                selectedSquare.classList.add('selected');
+            }
+        }
+
+        function updateBoard(board) {
+            const buttons = document.querySelectorAll('.square');
+            buttons.forEach((button, index) => {
+                button.innerText = board[index];
+            });
+        }
+
+        window.onload = fetchValidMoves;
+    </script>
+</body>
+</html>
